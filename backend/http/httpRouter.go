@@ -154,6 +154,7 @@ func StartHttp(ctx context.Context, storage *bolt.BoltStore, shutdownComplete ch
 	api.HandleFunc("DELETE /access", withAdmin(accessDeleteHandler))
 	api.HandleFunc("GET /access/groups", withAdmin(groupGetHandler))
 	api.HandleFunc("POST /access/group", withAdmin(groupPostHandler))
+	api.HandleFunc("PUT /access/group", withAdmin(groupPutHandler))
 	api.HandleFunc("DELETE /access/group", withAdmin(groupDeleteHandler))
 
 	// ========================================
