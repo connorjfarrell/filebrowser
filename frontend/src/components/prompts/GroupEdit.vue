@@ -15,20 +15,52 @@
       <label>{{ $t("access.groupName") }}</label>
       <input class="input" type="text" :value="name" disabled />
     </p>
-    <label>{{ membersLabel }}</label>
-    <input
-      class="input"
-      type="text"
-      v-model="filter"
-      :placeholder="$t('access.filterUsers')"
-      :aria-label="$t('access.filterUsers')"
-    />
-    <div class="member-list">
-      <label v-for="username in visibleUsers" :key="username" class="member-item">
-        <input type="checkbox" :value="username" v-model="selected" />
-        {{ username }}
-      </label>
+    <label for="group-member-input">{{ membersLabel }}</label>
+    <div class="form-flex-group">
+      <input
+        id="group-member-input"
+        class="input flat-right form-grow"
+        type="text"
+        list="group-member-suggestions"
+        v-model.trim="newMember"
+        :placeholder="$t('access.enterUsername')"
+        @keydown.enter.prevent="addMember"
+      />
+      <datalist id="group-member-suggestions">
+        <option v-for="username in suggestedUsers" :key="username" :value="username"></option>
+      </datalist>
+      <button
+        type="button"
+        class="button form-button flat-left"
+        :aria-label="$t('access.addMember')"
+        :title="$t('access.addMember')"
+        @click="addMember"
+      >
+        <i class="material-symbols">add</i>
+      </button>
     </div>
+    <table v-if="selected.length > 0">
+      <tbody>
+        <tr>
+          <th>{{ $t("general.name", { suffix: "" }) }}</th>
+          <th>{{ $t("general.edit") }}</th>
+        </tr>
+        <tr v-for="username in selected" :key="username">
+          <td>{{ username }}</td>
+          <td>
+            <button
+              type="button"
+              class="action"
+              :aria-label="$t('general.delete')"
+              :title="$t('general.delete')"
+              @click="removeMember(username)"
+            >
+              <i class="material-symbols">delete</i>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
   <div class="card-actions">
@@ -69,7 +101,7 @@ export default {
       name: this.group,
       selected: [...this.members],
       allUsers: [],
-      filter: "",
+      newMember: "",
       saving: false,
     };
   },
@@ -91,12 +123,25 @@ export default {
     isNew() {
       return !this.group;
     },
-    visibleUsers() {
-      const q = this.filter.toLowerCase();
-      return this.allUsers.filter((u) => u.toLowerCase().includes(q));
+    suggestedUsers() {
+      return this.allUsers.filter((u) => !this.selected.includes(u));
     },
   },
   methods: {
+    addMember() {
+      if (!this.newMember) return;
+      if (!this.allUsers.includes(this.newMember)) {
+        notify.showError(this.$t("access.unknownUser", { name: this.newMember }));
+        return;
+      }
+      if (!this.selected.includes(this.newMember)) {
+        this.selected.push(this.newMember);
+      }
+      this.newMember = "";
+    },
+    removeMember(username) {
+      this.selected = this.selected.filter((u) => u !== username);
+    },
     closeTopPrompt() {
       mutations.closeTopPrompt();
     },
@@ -118,16 +163,7 @@ export default {
 </script>
 
 <style scoped>
-.member-list {
-  max-height: 16rem;
-  overflow-y: auto;
-  margin-top: 0.5rem;
-}
-.member-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0;
-  cursor: pointer;
+.form-flex-group {
+  margin: 0.5em 0 1em;
 }
 </style>

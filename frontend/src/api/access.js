@@ -26,6 +26,32 @@ export async function getGroups() {
   return fetchJSON(apiPath)
 }
 /**
+ * @param {string} username
+ * @returns {Promise<{groups: string[]}>}
+ */
+export async function getUserGroups(username) {
+  const apiPath = getApiPath('access/groups', { user: username })
+  return fetchJSON(apiPath)
+}
+/**
+ * @param {string} group
+ * @param {string} username
+ * @returns {Promise<any>}
+ */
+export async function addUserToGroup(group, username) {
+  const apiPath = getApiPath('access/group', { group, user: username })
+  return fetchJSON(apiPath, { method: 'POST' })
+}
+/**
+ * @param {string} group
+ * @param {string} username
+ * @returns {Promise<any>}
+ */
+export async function removeUserFromGroup(group, username) {
+  const apiPath = getApiPath('access/group', { group, user: username })
+  return fetchJSON(apiPath, { method: 'DELETE' })
+}
+/**
  * @returns {Promise<{groups: string[], members: Record<string, string[]>}>}
  */
 export async function getGroupsWithMembers() {

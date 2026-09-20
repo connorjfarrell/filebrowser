@@ -134,6 +134,29 @@
           <option value="jwt">JWT</option> <!-- eslint-disable-line @intlify/vue-i18n/no-raw-text -->
         </select>
       </div>
+      <div v-if="stateUser.permissions.admin" class="user-groups">
+        <label for="user-group-input">{{ $t("access.userGroups") }}</label>
+        <div class="group-chips">
+          <span v-for="group in groups" :key="group" class="group-chip">
+            {{ group }}
+            <button type="button" class="chip-remove" :aria-label="$t('access.removeGroup')"
+              :title="$t('access.removeGroup')" @click="removeGroup(group)">
+              <i class="material-symbols material-size">close</i>
+            </button>
+          </span>
+        </div>
+        <div class="form-flex-group">
+          <input id="user-group-input" class="input form-form flat-right" type="text" list="user-group-options"
+            v-model.trim="newGroup" :placeholder="$t('access.addGroupPlaceholder')" @keydown.enter.prevent="addGroup" />
+          <datalist id="user-group-options">
+            <option v-for="g in suggestedGroups" :key="g" :value="g"></option>
+          </datalist>
+          <button type="button" class="button form-button flat-left" :disabled="!newGroup" @click="addGroup">
+            {{ $t("access.addGroup") }}
+          </button>
+        </div>
+        <p v-if="user.loginMethod === 'oidc'" class="group-note">{{ $t("access.groupsOidcNote") }}</p>
+      </div>
       <permissions v-if="stateUser.permissions.admin" :permissions="user.permissions" />
     </div>
   </div>
@@ -155,7 +178,7 @@
 
 <script>
 import { mutations, state } from "@/store";
-import { usersApi, settingsApi, authApi } from "@/api";
+import { usersApi, settingsApi, authApi, accessApi } from "@/api";
 import Languages from "@/components/settings/Languages.vue";
 import Permissions from "@/components/settings/Permissions.vue";
 import ToggleSwitch from "@/components/settings/ToggleSwitch.vue";
@@ -206,11 +229,16 @@ export default {
       pendingScopeSelectionContextId: null,
       pendingScopeIndex: null,
       addingPasskey: false,
+      groups: [],
+      originalGroups: [],
+      allGroups: [],
+      newGroup: "",
     };
   },
   async created() {
     await this.fetchData();
     await this.initializeForm();
+    await this.loadGroups();
   },
   mounted() {
     eventBus.on("pathSelected", this.onPathSelectedFromPicker);
@@ -229,6 +257,9 @@ export default {
     },
     isNew() {
       return !this.userId;
+    },
+    suggestedGroups() {
+      return this.allGroups.filter((g) => !this.groups.includes(g));
     },
     stateUser() {
       return state.user;
@@ -411,6 +442,68 @@ export default {
         },
       });
     },
+    async loadGroups() {
+      if (!state.user.permissions.admin) return;
+      try {
+        this.allGroups = (await accessApi.getGroups()).groups || [];
+        if (!this.isNew) {
+          this.groups = (await accessApi.getUserGroups(this.user.username)).groups || [];
+          this.originalGroups = [...this.groups];
+        }
+      } catch (e) {
+        notify.showError(e);
+      }
+    },
+    addGroup() {
+      const name = this.newGroup;
+      if (!name) return;
+      this.newGroup = "";
+      if (this.groups.includes(name)) return;
+      if (this.allGroups.includes(name)) {
+        this.groups.push(name);
+        return;
+      }
+      // Unknown group: ask before creating it (it is created when the user is saved).
+      const el = document.createElement("div");
+      el.textContent = name;
+      mutations.showPrompt({
+        name: "generic",
+        props: {
+          title: this.$t("access.addGroup"),
+          // Generic renders body via v-html, so the name is escaped.
+          body: this.$t("access.createGroupConfirm", { name: el.innerHTML }),
+          buttons: [
+            {
+              label: this.$t("general.cancel"),
+              className: "button--grey",
+              action: () => mutations.closeTopPrompt(),
+            },
+            {
+              label: this.$t("general.create"),
+              action: () => {
+                this.groups.push(name);
+                this.allGroups.push(name);
+                mutations.closeTopPrompt();
+              },
+            },
+          ],
+        },
+      });
+    },
+    removeGroup(group) {
+      this.groups = this.groups.filter((g) => g !== group);
+    },
+    async saveGroups(username) {
+      if (!state.user.permissions.admin) return;
+      const toAdd = this.groups.filter((g) => !this.originalGroups.includes(g));
+      const toRemove = this.originalGroups.filter((g) => !this.groups.includes(g));
+      for (const group of toAdd) {
+        await accessApi.addUserToGroup(group, username);
+      }
+      for (const group of toRemove) {
+        await accessApi.removeUserFromGroup(group, username);
+      }
+    },
     async save(event) {
       event.preventDefault();
       try {
@@ -433,12 +526,14 @@ export default {
               actorPasswordPromptI18nKey: "prompts.confirmPasswordToSaveUser",
             }
           );
+          await this.saveGroups(this.user.username);
           // Emit event to refresh user list
           eventBus.emit('usersChanged');
           // Close the prompt
           mutations.closeTopPrompt();
         } else {
           await usersApi.update({ ...this.user, scopes: scopesToSend }, fields);
+          await this.saveGroups(this.user.username);
           eventBus.emit('usersChanged');
           notify.showSuccessToast(this.$t("settings.userUpdated"));
           mutations.closeTopPrompt();
@@ -642,6 +737,36 @@ export default {
 </script>
 
 <style scoped>
+.user-groups {
+  padding-bottom: 1em;
+}
+.group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  margin: 0.4em 0;
+}
+.group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  padding: 0.1em 0.3em 0.1em 0.7em;
+  border-radius: 1em;
+  background: var(--surfaceSecondary, rgba(128, 128, 128, 0.2));
+}
+.chip-remove {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.group-note {
+  opacity: 0.75;
+  margin: 0.4em 0 0;
+}
 .scope-list {
   display: flex;
   align-items: stretch;

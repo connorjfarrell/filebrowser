@@ -24,6 +24,7 @@
     >
       <template #cell-members="{ row }">{{ row.members.join(", ") }}</template>
       <template #cell-actions="{ row }">
+        <div class="row-actions">
         <div
           @click="openPrompt(row.name)"
           class="clickable action button"
@@ -47,6 +48,7 @@
           @keydown.space.prevent="remove(row.name)"
         >
           <i class="material-symbols">delete</i>
+        </div>
         </div>
       </template>
     </settings-table>
@@ -160,6 +162,11 @@ export default {
 <style scoped>
 .card-content.full :deep(.settings-table-wrapper) {
   margin-top: 0.75rem;
+}
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.25rem;
 }
 .clickable {
   cursor: pointer;

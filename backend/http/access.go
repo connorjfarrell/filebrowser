@@ -281,7 +281,7 @@ func groupPostHandler(w http.ResponseWriter, r *http.Request, d *requestContext)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
-	return http.StatusOK, nil
+	return renderJSON(w, r, map[string]string{"message": "user added to group"})
 }
 
 // groupPutHandler creates a group or replaces its membership.
@@ -314,7 +314,7 @@ func groupPutHandler(w http.ResponseWriter, r *http.Request, d *requestContext) 
 	if err := store.Access.SetGroupMembers(body.Group, body.Members); err != nil {
 		return http.StatusInternalServerError, err
 	}
-	return http.StatusOK, nil
+	return renderJSON(w, r, map[string]string{"message": "group saved"})
 }
 
 // groupDeleteHandler removes a user from a group.
@@ -343,13 +343,13 @@ func groupDeleteHandler(w http.ResponseWriter, r *http.Request, d *requestContex
 		if err := store.Access.DeleteGroup(group); err != nil {
 			return http.StatusInternalServerError, err
 		}
-		return http.StatusOK, nil
+		return renderJSON(w, r, map[string]string{"message": "group deleted"})
 	}
 	err := store.Access.RemoveUserFromGroup(group, user)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
-	return http.StatusOK, nil
+	return renderJSON(w, r, map[string]string{"message": "user removed from group"})
 }
 
 // accessPatchHandler updates an access rule's path.
