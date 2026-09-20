@@ -600,24 +600,50 @@ func (s *Storage) SetGroupMembers(group string, usernames []string) error {
 			members[name] = struct{}{}
 		}
 	}
+	previous, existed := s.Groups[group]
 	s.Groups[group] = members
+	if err := s.SaveToDB(); err != nil {
+		// Keep memory and the database consistent: undo the in-memory change.
+		if existed {
+			s.Groups[group] = previous
+		} else {
+			delete(s.Groups, group)
+		}
+		return err
+	}
 	s.clearAllCaches()
-	return s.SaveToDB()
+	return nil
 }
 
 // DeleteGroup removes a group and every access rule entry that references it.
+// Group removal and rule cleanup happen under one lock and are saved together, so a
+// concurrent rule change cannot slip in between. If saving fails, both are restored.
 func (s *Storage) DeleteGroup(group string) error {
-	if err := s.RemoveAllRulesForGroup(group); err != nil {
-		return err
-	}
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	if _, ok := s.Groups[group]; !ok {
-		return nil
+	previousMembers, existed := s.Groups[group]
+	// Snapshot the rules so a failed save can be rolled back.
+	rulesSnapshot, err := json.Marshal(s.AllRules)
+	if err != nil {
+		return err
 	}
 	delete(s.Groups, group)
+	rulesChanged := s.removeAllRulesForGroupNL(group)
+	if !existed && !rulesChanged {
+		return nil
+	}
+	if err := s.SaveToDB(); err != nil {
+		if existed {
+			s.Groups[group] = previousMembers
+		}
+		restored := make(SourceRuleMap)
+		if jsonErr := json.Unmarshal(rulesSnapshot, &restored); jsonErr == nil {
+			s.AllRules = restored
+		}
+		return err
+	}
 	s.clearAllCaches()
-	return s.SaveToDB()
+	return nil
 }
 
 // GetUserGroups returns all groups for a specific user.
@@ -869,6 +895,16 @@ func (s *Storage) RemoveAllRulesForUser(username string) error {
 func (s *Storage) RemoveAllRulesForGroup(groupname string) error {
 	s.mux.Lock()
 	defer s.mux.Unlock()
+	if s.removeAllRulesForGroupNL(groupname) {
+		s.clearAllCaches()
+		return s.SaveToDB()
+	}
+	return nil
+}
+
+// removeAllRulesForGroupNL removes a group from every allow and deny list and reports
+// whether anything changed. Caller must hold s.mux and is responsible for saving.
+func (s *Storage) removeAllRulesForGroupNL(groupname string) bool {
 	changed := false
 	changedSourcePaths := make(map[string]struct{})
 	for sourcePath, rulesBySource := range s.AllRules {
@@ -891,11 +927,7 @@ func (s *Storage) RemoveAllRulesForGroup(groupname string) error {
 			}
 		}
 	}
-	if changed {
-		s.clearAllCaches()
-		return s.SaveToDB()
-	}
-	return nil
+	return changed
 }
 
 // GetRulesForUser returns all rules for a specific user for a given sourcePath.

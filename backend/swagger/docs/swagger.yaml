@@ -60,6 +60,13 @@ definitions:
         items:
           type: string
         type: array
+      members:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        description: Members maps group name to usernames; only set when ?members=true.
+        type: object
     type: object
   http.HttpResponse:
     properties:
@@ -2640,10 +2647,9 @@ paths:
         name: group
         required: true
         type: string
-      - description: User name
+      - description: User name (omit to delete the whole group)
         in: query
         name: user
-        required: true
         type: string
       produces:
       - application/json
@@ -2700,6 +2706,44 @@ paths:
       summary: Add a user to a group
       tags:
       - Access
+    put:
+      consumes:
+      - application/json
+      description: Creates the group if missing and replaces its member list.
+      parameters:
+      - description: Group name and full member list
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            group:
+              type: string
+            members:
+              items:
+                type: string
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Group saved successfully
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create or update a group
+      tags:
+      - Access
   /api/access/groups:
     get:
       consumes:
@@ -2710,6 +2754,10 @@ paths:
         in: query
         name: user
         type: string
+      - description: Also return each group's member list (ignored when user is set)
+        in: query
+        name: members
+        type: boolean
       produces:
       - application/json
       responses:

@@ -1728,3 +1728,44 @@ func TestRemoveUserCascade_MixedUsers(t *testing.T) {
 
 	t.Log("✓ Cascade delete only affects the specified user")
 }
+
+func TestSetGroupMembers_ReplacesMembership(t *testing.T) {
+	setupTestSources()
+	s, _ := createTestStorage(t)
+
+	if err := s.SetGroupMembers("editors", []string{"alice", "bob", ""}); err != nil {
+		t.Fatalf("SetGroupMembers: %v", err)
+	}
+	if err := s.SetGroupMembers("editors", []string{"bob", "carol"}); err != nil {
+		t.Fatalf("SetGroupMembers replace: %v", err)
+	}
+	got := s.GetGroupMembers()["editors"]
+	if len(got) != 2 || got[0] != "bob" || got[1] != "carol" {
+		t.Fatalf("unexpected members: %v", got)
+	}
+}
+
+func TestDeleteGroup_RemovesGroupAndRules(t *testing.T) {
+	setupTestSources()
+	s, _ := createTestStorage(t)
+
+	if err := s.SetGroupMembers("acme", []string{"alice"}); err != nil {
+		t.Fatalf("SetGroupMembers: %v", err)
+	}
+	if err := s.AllowGroup("mnt/storage", "/tenant", "acme"); err != nil {
+		t.Fatalf("AllowGroup: %v", err)
+	}
+	if err := s.DeleteGroup("acme"); err != nil {
+		t.Fatalf("DeleteGroup: %v", err)
+	}
+	if _, ok := s.GetGroupMembers()["acme"]; ok {
+		t.Fatal("acme should be gone")
+	}
+	if rules := s.GetRulesForGroup("mnt/storage", "acme"); len(rules) != 0 {
+		t.Fatalf("expected no rules for deleted group, got %v", rules)
+	}
+	// Deleting a missing group is a no-op.
+	if err := s.DeleteGroup("acme"); err != nil {
+		t.Fatalf("DeleteGroup missing: %v", err)
+	}
+}

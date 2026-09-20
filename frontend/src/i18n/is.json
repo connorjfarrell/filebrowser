@@ -901,7 +901,22 @@
     "defaultBehaviorDescription": "Þetta sýnir hvað gerist þegar notandi reynir að nálgast slóð þar sem engar sérstakar aðgangsreglur eru til. 'Leyfa' þýðir að notendur geta nálgast sjálfgefið, 'Hafna' þýðir að notendum er lokað sjálfgefið nema þeir séu sérstaklega leyfðir.",
     "deletedCascade": "__NOT_TRANSLATED__",
     "cascadeDelete": "__NOT_TRANSLATED__",
-    "cascadeDeleteDescription": "__NOT_TRANSLATED__"
+    "cascadeDeleteDescription": "__NOT_TRANSLATED__",
+    "groups": "Hópar",
+    "newGroup": "Nýr hópur",
+    "editGroup": "Breyta hópi",
+    "groupName": "Heiti hóps",
+    "userGroups": "Hópar",
+    "addGroup": "Bæta við hópi",
+    "createGroupConfirm": "Hópurinn „{name}“ er ekki til. Búa hann til?",
+    "addGroupPlaceholder": "Heiti hóps",
+    "removeGroup": "Fjarlægja úr hópi",
+    "groupMembers": "Meðlimir",
+    "enterUsername": "Sláðu inn notandanafn",
+    "addMember": "Bæta við meðlim",
+    "unknownUser": "Enginn notandi með nafnið „{name}“",
+    "deleteGroupConfirm": "Eyða hópnum „{name}“? Hann verður einnig fjarlægður úr öllum aðgangsreglum.",
+    "groupsOidcNote": "Meðlimir OIDC-samstilltra hópa eru endurstilltir frá auðkennisveitunni í hvert sinn sem þessir notendur skrá sig inn."
   },
   "fileLoading": {
     "title": "Upphleðslur & Niðurhöl",

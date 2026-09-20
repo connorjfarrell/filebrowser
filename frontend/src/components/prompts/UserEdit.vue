@@ -230,6 +230,7 @@ export default {
       pendingScopeIndex: null,
       addingPasskey: false,
       groups: [],
+      createdUser: false,
       originalGroups: [],
       allGroups: [],
       newGroup: "",
@@ -497,11 +498,14 @@ export default {
       if (!state.user.permissions.admin) return;
       const toAdd = this.groups.filter((g) => !this.originalGroups.includes(g));
       const toRemove = this.originalGroups.filter((g) => !this.groups.includes(g));
+      // Record each change as it succeeds so a retry after a partial failure only redoes what is pending.
       for (const group of toAdd) {
         await accessApi.addUserToGroup(group, username);
+        this.originalGroups.push(group);
       }
       for (const group of toRemove) {
         await accessApi.removeUserFromGroup(group, username);
+        this.originalGroups = this.originalGroups.filter((g) => g !== group);
       }
     },
     async save(event) {
@@ -520,12 +524,16 @@ export default {
             notify.showError(this.$t("settings.userNotAdmin"));
             return;
           }
-          await usersApi.create(
-            { ...this.user, scopes: scopesToSend },
-            {
-              actorPasswordPromptI18nKey: "prompts.confirmPasswordToSaveUser",
-            }
-          );
+          // Skip creation on a retry after the user was created but a group change failed.
+          if (!this.createdUser) {
+            await usersApi.create(
+              { ...this.user, scopes: scopesToSend },
+              {
+                actorPasswordPromptI18nKey: "prompts.confirmPasswordToSaveUser",
+              }
+            );
+            this.createdUser = true;
+          }
           await this.saveGroups(this.user.username);
           // Emit event to refresh user list
           eventBus.emit('usersChanged');

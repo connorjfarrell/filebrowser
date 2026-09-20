@@ -319,6 +319,64 @@ const docTemplate = `{
             }
         },
         "/api/access/group": {
+            "put": {
+                "description": "Creates the group if missing and replaces its member list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Access"
+                ],
+                "summary": "Create or update a group",
+                "parameters": [
+                    {
+                        "description": "Group name and full member list",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "group": {
+                                    "type": "string"
+                                },
+                                "members": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Group saved successfully"
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Adds a user to a group.",
                 "consumes": [
@@ -393,10 +451,9 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "User name",
+                        "description": "User name (omit to delete the whole group)",
                         "name": "user",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -442,6 +499,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "User name",
                         "name": "user",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Also return each group's member list (ignored when user is set)",
+                        "name": "members",
                         "in": "query"
                     }
                 ],
@@ -4870,6 +4933,16 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
+                    }
+                },
+                "members": {
+                    "description": "Members maps group name to usernames; only set when ?members=true.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 }
             }
