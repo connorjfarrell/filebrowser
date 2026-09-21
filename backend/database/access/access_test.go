@@ -1769,3 +1769,34 @@ func TestDeleteGroup_RemovesGroupAndRules(t *testing.T) {
 		t.Fatalf("DeleteGroup missing: %v", err)
 	}
 }
+
+func TestDeleteGroup_KeepsDenyAllRule(t *testing.T) {
+	setupTestSources()
+	s, _ := createTestStorage(t)
+
+	// "Deny everyone except group acme": a DenyAll rule whose only allow entry is the group.
+	if err := s.SetGroupMembers("acme", []string{"alice"}); err != nil {
+		t.Fatalf("SetGroupMembers: %v", err)
+	}
+	if err := s.DenyAll("mnt/storage", "/tenant"); err != nil {
+		t.Fatalf("DenyAll: %v", err)
+	}
+	if err := s.AllowGroup("mnt/storage", "/tenant", "acme"); err != nil {
+		t.Fatalf("AllowGroup: %v", err)
+	}
+	if !s.Permitted("mnt/storage", "/tenant", "alice") {
+		t.Fatal("alice should be permitted through the group before it is deleted")
+	}
+
+	if err := s.DeleteGroup("acme"); err != nil {
+		t.Fatalf("DeleteGroup: %v", err)
+	}
+
+	// Deleting the group must not remove the deny-all rule and open the path to everyone.
+	if s.Permitted("mnt/storage", "/tenant", "alice") || s.Permitted("mnt/storage", "/tenant", "bob") {
+		t.Fatal("path must stay denied for everyone after the allowed group is deleted")
+	}
+	if rules := s.GetRulesForGroup("mnt/storage", "acme"); len(rules) != 0 {
+		t.Fatalf("no rule should reference the deleted group, got %v", rules)
+	}
+}

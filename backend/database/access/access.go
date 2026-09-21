@@ -919,7 +919,8 @@ func (s *Storage) removeAllRulesForGroupNL(groupname string) bool {
 				changedSourcePaths[sourcePath] = struct{}{}
 				changed = true
 			}
-			if len(rule.Allow.Users) == 0 && len(rule.Allow.Groups) == 0 && len(rule.Deny.Users) == 0 && len(rule.Deny.Groups) == 0 {
+			// A rule left with only DenyAll must stay, otherwise removing the group would open the path.
+			if len(rule.Allow.Users) == 0 && len(rule.Allow.Groups) == 0 && len(rule.Deny.Users) == 0 && len(rule.Deny.Groups) == 0 && !rule.DenyAll {
 				delete(s.AllRules[sourcePath], indexPath)
 				if len(s.AllRules[sourcePath]) == 0 {
 					delete(s.AllRules, sourcePath)
